@@ -14,10 +14,9 @@
       --line: #e2e8f0;
       --card: #ffffff;
       --teal: #0f766e;
-      --teal-soft: #ccfbf1;
       --indigo: #4f46e5;
-      --indigo-soft: #e0e7ff;
-      --glow: rgba(15, 118, 110, 0.10);
+      --amber: #b45309;
+      --rose: #be185d;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -27,10 +26,9 @@
         --line: #1f2a37;
         --card: #111923;
         --teal: #2dd4bf;
-        --teal-soft: #0f2f2c;
         --indigo: #a5b4fc;
-        --indigo-soft: #1e2347;
-        --glow: rgba(45, 212, 191, 0.10);
+        --amber: #fbbf24;
+        --rose: #f9a8d4;
       }
     }
     * { box-sizing: border-box; }
@@ -38,93 +36,124 @@
       margin: 0;
       min-height: 100vh;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.6;
+      line-height: 1.5;
       color: var(--text);
-      background: radial-gradient(900px 340px at 50% -80px, var(--glow), transparent), var(--bg);
+      background: var(--bg);
     }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 88px 24px 48px; }
-    .badge {
-      display: inline-block;
-      margin-bottom: 20px;
-      padding: 4px 12px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--teal);
-      background: var(--teal-soft);
-      border-radius: 999px;
-    }
-    h1 { margin: 0 0 12px; font-size: clamp(2.4rem, 8vw, 3.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
-    .lede { margin: 0 0 44px; max-width: 40ch; font-size: 1.15rem; color: var(--muted); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 80px 24px 48px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2.2rem, 7vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+    .lede { margin: 0 0 28px; color: var(--muted); font-size: 1.1rem; }
 
-    .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .tool {
+    /* Category colours. To add a category, add a class here with a colour variable. */
+    .cat-diagram { --c: var(--teal); }
+    .cat-math    { --c: var(--indigo); }
+    .cat-dev     { --c: var(--amber); }
+    .cat-text    { --c: var(--rose); }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 28px; padding: 0; list-style: none; font-size: 0.9rem; color: var(--muted); }
+    .legend li { display: flex; align-items: center; gap: 8px; }
+    .legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; counter-reset: tool; }
+    .tile {
+      counter-increment: tool;
       display: flex;
       flex-direction: column;
-      padding: 24px;
-      color: inherit;
+      aspect-ratio: 1;
+      padding: 12px 14px 14px;
+      color: var(--text);
       text-decoration: none;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-    }
-    .tool:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); border-color: var(--accent); }
-    .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-    .flow { --accent: var(--teal); --tint: var(--teal-soft); }
-    .graph { --accent: var(--indigo); --tint: var(--indigo-soft); }
-
-    .icon {
-      display: grid;
-      place-items: center;
-      width: 44px;
-      height: 44px;
-      margin-bottom: 16px;
-      font-size: 1.4rem;
-      background: var(--tint);
+      background: color-mix(in srgb, var(--c) 9%, var(--card));
+      border: 1px solid color-mix(in srgb, var(--c) 35%, var(--line));
       border-radius: 12px;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
-    .tool h2 { margin: 0 0 4px; font-size: 1.2rem; }
-    .tool p { margin: 0 0 16px; color: var(--muted); }
-    .open { margin-top: auto; font-weight: 600; color: var(--accent); }
-    .open::after { content: " \203A"; display: inline-block; transition: transform 0.15s; }
-    .tool:hover .open::after { transform: translateX(3px); }
+    .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px color-mix(in srgb, var(--c) 22%, transparent); }
+    .tile:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; }
+    .num { font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--c); }
+    .num::before { content: counter(tool, decimal-leading-zero); }
+    .sym { margin-top: auto; font-size: 2.3rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+    .name { font-size: 0.9rem; font-weight: 600; }
 
-    footer { margin-top: 56px; font-size: 0.9rem; color: var(--muted); }
+    /* Empty slot: invites a new tool, like an undiscovered element. */
+    .tile.add {
+      counter-increment: none;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.85rem;
+      background: transparent;
+      border: 1px dashed var(--line);
+    }
+    .tile.add b { font-size: 1.8rem; font-weight: 400; line-height: 1; }
+    .tile.add:hover { color: var(--text); box-shadow: none; border-color: var(--muted); }
+
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    footer { margin-top: 48px; font-size: 0.9rem; color: var(--muted); }
     footer a { color: var(--muted); text-underline-offset: 3px; }
-    footer a:hover { color: var(--teal); }
+    footer a:hover { color: var(--text); }
 
     @media (prefers-reduced-motion: reduce) {
-      .tool, .open::after { transition: none; }
-      .tool:hover { transform: none; }
+      .tile { transition: none; }
+      .tile:hover { transform: none; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <span class="badge">Free &middot; No sign-up</span>
-    <h1>Web Tools</h1>
-    <p class="lede">Small tools that run in your browser. Open one and get started.</p>
+    <h1>Small tools, big shortcuts.</h1>
+    <p class="lede">Free, instant and right in your browser. No install, no sign-up.</p>
 
-    <main class="tools">
-      <a class="tool flow" href="flowchart.html">
-        <span class="icon" aria-hidden="true">🔀</span>
-        <h2>Flowchart</h2>
-        <p>Turn a simple YAML file into an interactive, clickable flowchart.</p>
-        <span class="open">Open Flowchart</span>
+    <ul class="legend">
+      <li class="cat-diagram"><i></i>Diagrams</li>
+      <li class="cat-math"><i></i>Math</li>
+      <!-- Add a legend item when you use a new category:
+      <li class="cat-dev"><i></i>Developer</li> -->
+    </ul>
+
+    <main class="grid">
+
+      <a class="tile cat-diagram" href="flowchart.html" title="Turn a YAML file into an interactive flowchart">
+        <span class="num"></span>
+        <span class="sym">Fl</span>
+        <span class="name">Flowchart</span>
+        <span class="sr">Turn a YAML file into an interactive flowchart.</span>
       </a>
-      <a class="tool graph" href="graph-lab.html">
-        <span class="icon" aria-hidden="true">📈</span>
-        <h2>GraphLab</h2>
-        <p>Type an equation and see it plotted in 2D or 3D.</p>
-        <span class="open">Open GraphLab</span>
+
+      <a class="tile cat-math" href="graph-lab.html" title="Plot equations in 2D and 3D">
+        <span class="num"></span>
+        <span class="sym">Gl</span>
+        <span class="name">GraphLab</span>
+        <span class="sr">Plot equations in 2D and 3D.</span>
       </a>
+
+      <!--
+        ADD A NEW TOOL: copy the block below, remove the comment marks, and paste it above this note.
+        1. href: the page file (for example my-tool.html)
+        2. class: pick a category: cat-diagram, cat-math, cat-dev or cat-text
+        3. title and .sr: one short sentence describing the tool
+        4. .sym: a two letter symbol, .name: the tool name
+        The number is added automatically.
+
+      <a class="tile cat-dev" href="my-tool.html" title="What the tool does">
+        <span class="num"></span>
+        <span class="sym">Mt</span>
+        <span class="name">My Tool</span>
+        <span class="sr">What the tool does.</span>
+      </a>
+      -->
+
+      <a class="tile add" href="https://github.com/hclpandv/web-tools/issues/new">
+        <b>+</b>
+        <span>Suggest a tool</span>
+      </a>
+
     </main>
 
     <footer>
       <a href="https://github.com/hclpandv/web-tools">Source on GitHub</a>
-      &nbsp;&middot;&nbsp;
-      <a href="https://github.com/hclpandv/web-tools/issues/new">Suggest a tool</a>
     </footer>
   </div>
 </body>
