@@ -62,14 +62,34 @@ Everything runs client-side in your browser. Nothing you upload or type is store
 
 ## 💻 Run Locally
 
+Clone the repository and enter the project directory:
+
 ```bash
 git clone https://github.com/hclpandv/web-tools.git
 cd web-tools
-# serve the docs folder with any static server, for example:
-python -m http.server 8000 --directory docs
 ```
 
-Then open **http://localhost:8000**.
+### Option 1: Use the Makefile (recommended)
+
+Start the local documentation server and open Google Chrome automatically:
+
+```bash
+make serve
+```
+
+This starts a Python HTTP server on port `8000`, serving the `docs` directory, and opens the site in Chrome.
+
+Press `Ctrl+C` to stop the server.
+
+**Requirements:** Python 3, `make`, and Google Chrome. Ensure the `Makefile` is in the repository root.
+
+### Option 2: Start the server manually
+
+```bash
+python3 -m http.server 8000 --directory docs
+```
+
+Then open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
