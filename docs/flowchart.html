@@ -2,215 +2,297 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flowchart Visualizer</title>
+<meta name="description" content="Turn a simple YAML file into an interactive, clickable flowchart. Edit live, then download.">
 <link rel="icon" type="image/png" href="img/workflow.png">
-
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
-
 <style>
-    body { font-family: Arial,sans-serif; background:#0f172a; color:#e5e7eb; margin:0; padding:20px; }
-    h1 { text-align:center; }
-    .flow { display:flex; flex-direction:column; align-items:center; gap:16px; }
-    .step {
-      background: #1e293b; border-radius:10px; padding:14px 22px; min-width:300px;
-      text-align:center; cursor:pointer; transition:0.2s; box-shadow:0 0 10px rgba(56,189,248,0.3);
-    }
-    .step:hover { transform:translateY(-5px); background:#334155; }
-    .step span { display:block; margin-top:6px; font-size:12px; color:#94a3b8; }
-    .arrow { font-size:24px; align-self:center; }
-    .modal {
-      display:none; position:fixed; inset:0; background:rgba(62,61,61,0.7);
-      justify-content:center; align-items:center;
-    }
-    .modal-content {
-      background:#020617; padding:25px; border-radius:12px; max-width:600px; width:90%;
-      box-shadow:0 20px 40px rgba(0,0,0,.6);
-    }
-    .modal h2 { margin-top:0; }
-    .close { float:right; cursor:pointer; color:#f87171; font-weight:bold; }
-    code { background:#020617; padding:4px 6px; border-radius:6px; color:#38bdf8; display:block; margin:6px 0; }
-    .file-box {
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        width: 260px;
-        z-index: 9999;
-    }
-    .hero {
-      text-align: center;
-      margin-top: 80px;
-    }
-    .hero h1 { font-size: 42px; }
-    .hero h2 { color: #38bdf8; margin-top: 10px; }
-    .hero p { color: #94a3b8; max-width: 700px; margin: 12px auto; }
-    .hero .hint { margin-top: 20px; color: #e5e7eb; }
+:root{--bg:#0b1120;--panel:#0f172a;--card:#1e293b;--line:#26334d;--text:#e5e7eb;--muted:#94a3b8;--accent:#38bdf8;--bad:#f87171;--ok:#4ade80}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;display:flex;flex-direction:column;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand b{display:block;line-height:1.2}
+.brand small{color:var(--muted);font-size:.8rem}
+.btn{padding:7px 13px;background:var(--card);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:.9rem;transition:border-color .15s}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#04202e;font-weight:600}
+
+.tabs{display:none;border-bottom:1px solid var(--line);background:var(--panel)}
+.tabs button{flex:1;padding:10px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+
+.main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,40%) 1fr}
+.main.noedit{grid-template-columns:1fr}
+.main.noedit .editor{display:none}
+.editor{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.ehead{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.ehead strong{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{padding:1px 8px;border-radius:99px;background:var(--card);font-size:.75rem}
+textarea{flex:1;width:100%;resize:none;border:0;padding:14px;background:transparent;color:#cbd5e1;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;tab-size:2}
+textarea:focus{outline:none}
+.status{min-height:38px;padding:9px 14px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.status.ok{color:var(--ok)}
+.status.bad{color:var(--bad)}
+
+.preview{overflow:auto;min-height:0;padding:32px 20px 64px}
+body.drag .preview{outline:2px dashed var(--accent);outline-offset:-14px}
+.empty{max-width:520px;margin:7vh auto 0;text-align:center}
+.empty h1{margin:0 0 8px;font-size:2rem;letter-spacing:-.02em}
+.empty p{margin:0 0 22px;color:var(--muted)}
+.empty .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.empty .fine{margin:26px 0 0;font-size:.82rem}
+.chart{margin:0 auto}
+.chart h2{margin:0 0 .3em;font-size:2em;text-align:center}
+.chart .hint{margin:0 0 24px;text-align:center;color:var(--muted)}
+.flow{display:flex;flex-direction:column;align-items:center;gap:16px}
+.step{display:block;min-width:300px;padding:14px 22px;background:#1e293b;border:0;border-radius:10px;text-align:center;cursor:pointer;transition:.2s;box-shadow:0 0 10px rgba(56,189,248,.3)}
+.step:hover{transform:translateY(-5px);background:#334155}
+.step span{display:block;margin-top:6px;font-size:12px;color:#94a3b8}
+.arrow{font-size:24px;align-self:center}
+.done{margin:32px 0 0;text-align:center;font-size:.9rem;color:var(--muted)}
+.done button{padding:0;background:none;border:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}
+
+.modal{position:fixed;inset:0;z-index:10;display:none;place-items:center;padding:16px;background:rgba(62,61,61,.7)}
+.modal.open{display:grid}
+.sheet{width:100%;max-width:600px;max-height:85vh;overflow:auto;padding:25px;background:#020617;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.6)}
+.sheet h3{margin:0 0 10px}
+.x{float:right;background:none;border:0;color:var(--bad);cursor:pointer;font-weight:700}
+.sheet code{display:block;margin:6px 0;padding:4px 8px;background:#020617;border-radius:6px;color:var(--accent);white-space:pre-wrap}
+.foot{padding:7px 16px;border-top:1px solid var(--line);text-align:center;font-size:.78rem;color:var(--muted)}
+.foot a{color:var(--accent);text-decoration:none}
+
+@media (max-width:860px){
+  .main{grid-template-columns:1fr}
+  .main[data-tab=chart] .editor,.main[data-tab=yaml] .preview{display:none}
+  .tabs{display:flex}
+  .desk{display:none}
+  .brand small{display:none}
+}
+@media (prefers-reduced-motion:reduce){.step{transition:none}}
 </style>
-
 </head>
-
 <body>
 
-<h1 id="title"></h1>
+<header class="bar">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="16" width="8" height="5" rx="1.5"/><path d="M7 8v3a3 3 0 0 0 3 3h4a3 3 0 0 1 3 3"/></svg>
+    <div><b>Flowchart Visualizer</b><small>YAML in, interactive flowchart out</small></div>
+  </div>
+  <button class="btn desk" id="tog" type="button">Edit YAML</button>
+  <button class="btn" id="openBtn" type="button">Open YAML</button>
+  <button class="btn" id="sampleBtn" type="button">Try sample</button>
+  <button class="btn" id="yamlDl" type="button" disabled>Download YAML</button>
+  <button class="btn primary" id="downloadBtn" type="button" title="Save the finished flowchart as a static HTML file" disabled>Download as HTML</button>
+  <input type="file" id="yamlFile" accept=".yml,.yaml,text/yaml,text/plain" hidden>
+</header>
 
-<p id="hint" style="text-align:center;color:#94a3b8"></p>
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="yaml" aria-selected="false">YAML</button>
+  <button role="tab" data-tab="chart" aria-selected="true">Flowchart</button>
+</nav>
 
-<div id="hero" class="hero">
-  <h1>Flowchart Visualizer</h1>
-  <h2>Private • Fast • Reliable Workflow Design</h2>
-  <p>
-    A lightweight tool that turns simple YAML files into
-    interactive, clickable flowcharts.
-  </p>
-  <p>
-    Perfect for architects, DevOps engineers, and platform teams. Design in text. View in motion.
-  </p>
-  
-  <p class="hint">
-    Upload a YAML file to begin — or
-    <a href="https://github.com/hclpandv/web-tools/blob/main/docs/assets/flowchart_sample.yml"
-       target="_blank"
-       style="color:#38bdf8;text-decoration:none;">
-      view a sample
-    </a>
-  </p>
+<div class="main noedit" id="main" data-tab="chart">
+  <section class="editor">
+    <div class="ehead"><span aria-hidden="true">📄</span><strong id="fname">untitled.yml</strong><span class="tag" id="edited" hidden>edited</span></div>
+    <textarea id="src" spellcheck="false" aria-label="YAML source" placeholder="flowchart:
+  description: My workflow
+  steps:
+    - name: First step
+      subtitle: Optional one-liner
+      details: Shown when the step is clicked
+    - name: Second step"></textarea>
+    <div class="status" id="status" role="status">Paste YAML, open a file, or try the sample.</div>
+  </section>
+  <section class="preview" id="preview"></section>
 </div>
 
-<div class="file-box">
-    <input type="file" id="yamlFile" class="form-control">
-    <button id="downloadBtn"
-      style="display:none;margin-top:10px;padding:8px 14px;
-            background:#1e293b;color:#e5e7eb;border:none;border-radius:8px;
-            cursor:pointer;box-shadow:0 0 10px rgba(56,189,248,0.3);">
-      💾 Download flowchart
-    </button>
-</div>
+<footer class="foot">🛠️ Parts of this page were developed with assistance from <a href="https://openai.com/chatgpt" target="_blank" rel="noopener">ChatGPT</a> by OpenAI</footer>
 
-<div id="flow" class="flow"></div>
-
-<div id="modal" class="modal" onclick="closeModal()">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <span class="close" onclick="closeModal()">✖</span>
-    <h2 id="modal-title"></h2>
-    <div id="modal-body"></div>
+<div class="modal" id="modal">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <button class="x" id="mx" type="button" aria-label="Close">✖</button>
+    <h3 id="mt"></h3>
+    <div id="mb"></div>
   </div>
 </div>
 
-
-<!-- Footer credit -->
-<div id="footer-credit" style="
-    position: fixed;
-    bottom: 10px;           /* space from bottom */
-    width: 100%;
-    text-align: center;
-    font-size: 0.85em;
-    color: #94a3b8;
-    padding: 6px 0;
-    background: rgba(15,23,42,0.9);
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.4);
-    z-index: 9999;
-">
-  🛠️ Parts of this page were developed with assistance from 
-  <a href="https://openai.com/chatgpt" target="_blank" style="color:#38bdf8; text-decoration:none;">
-    ChatGPT
-  </a> by OpenAI
-</div>
-
 <script>
-let stepsData = [];
-const TEMPLATE_URL =
-  "https://raw.githubusercontent.com/hclpandv/web-tools/main/docs/assets/flowchart_template.html";
+const $ = id => document.getElementById(id);
+const SAMPLE_URL = "assets/flowchart_sample.yml";
+const SAMPLE_PAGE = "https://github.com/hclpandv/web-tools/blob/main/docs/assets/flowchart_sample.yml";
+const TEMPLATE_URL = "https://raw.githubusercontent.com/hclpandv/web-tools/main/docs/assets/flowchart_template.html";
+const EMPTY = `<div class="empty">
+  <h1>Design in text. View in motion.</h1>
+  <p>Turn a simple YAML file into an interactive, clickable flowchart.</p>
+  <div class="row">
+    <button class="btn primary" data-act="sample" type="button">Try the sample</button>
+    <button class="btn" data-act="open" type="button">Open a YAML file</button>
+  </div>
+  <p class="fine">Or click Show YAML to paste your own, or drop a file anywhere. When you are done, download the result as a static HTML file. Everything runs in your browser and your YAML is never uploaded.</p>
+</div>`;
 
+let steps = [], title = "", fileName = "flowchart.yml", shownName = "", original = "", timer;
 
-document.getElementById("yamlFile").addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (!file) return;
+function setStatus(msg, kind) { const s = $("status"); s.textContent = msg; s.className = "status " + (kind || ""); }
+function lock() { $("downloadBtn").disabled = !steps.length; $("yamlDl").disabled = !$("src").value.trim(); }
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
 
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const data = jsyaml.load(ev.target.result);
+function parse() {
+  const text = $("src").value;
+  $("edited").hidden = text === original;
+  if (!text.trim()) { steps = []; title = ""; draw(); lock(); setStatus("Paste YAML, open a file, or try the sample."); return; }
+  try {
+    const d = jsyaml.load(text);
+    if (!d || !d.flowchart) throw new Error("Add a top-level \u201Cflowchart:\u201D key.");
+    if (d.flowchart.steps && !Array.isArray(d.flowchart.steps)) throw new Error("\u201Csteps\u201D must be a list.");
+    title = d.flowchart.description || "Flowchart";
+    steps = d.flowchart.steps || [];
+    draw(); lock();
+    setStatus("\u2713 " + steps.length + " step" + (steps.length === 1 ? "" : "s"), "ok");
+  } catch (err) {
+    lock();
+    setStatus(String(err.message).split("\n")[0], "bad");   // the last valid chart stays on screen
+    showEditor();
+  }
+}
 
-    // Set title from YAML
-    document.getElementById("title").innerHTML =
-      data.flowchart.description || "Flowchart";
+function draw() {
+  const p = $("preview");
+  if (!steps.length && !title) { p.innerHTML = EMPTY; return; }
+  const wrap = el("div", "chart");
+  const h = el("h2"); h.innerHTML = title;
+  const hint = el("p", "hint");
+  const from = shownName ? "Showing " + shownName + ($("src").value !== original ? " (edited)" : "") + ". " : "";
+  hint.textContent = from + (steps.length ? "Click any step to see details" : "Add steps to see them here");
+  const flow = el("div", "flow");
+  steps.forEach((s, i) => {
+    const b = el("button", "step");
+    b.type = "button";
+    b.innerHTML = `${s.name || ""}<span>${s.subtitle || ""}</span>`;
+    b.onclick = () => openModal(s.name, s.details || "");
+    flow.append(b);
+    if (i < steps.length - 1) { const a = el("div", "arrow"); a.textContent = "\u2B07\uFE0F"; flow.append(a); }
+  });
+  wrap.append(h, hint, flow);
+  if (steps.length) {
+    const done = el("p", "done");
+    done.innerHTML = 'Happy with it? <button type="button" data-act="dl">Download it as a static HTML file</button> to open, host or share.';
+    wrap.append(done);
+  }
+  p.innerHTML = "";
+  p.append(wrap);
+}
 
-    stepsData = data.flowchart.steps || [];
-    render();
-    document.getElementById("hint").innerText = "Click any step to see details";
-    document.getElementById("hero").style.display = "none";
-    document.getElementById("footer-credit").style.display = "none";
-    document.getElementById("downloadBtn").style.display = "block";
-  };
-  reader.readAsText(file);
+function openModal(t, body) {
+  $("mt").innerHTML = t || "";
+  $("mb").innerHTML = body;
+  $("modal").classList.add("open");
+  $("mx").focus();
+}
+function closeModal() { $("modal").classList.remove("open"); }
+$("mx").onclick = closeModal;
+$("modal").onclick = e => { if (e.target === $("modal")) closeModal(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function setTab(t) {
+  $("main").dataset.tab = t;
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x.dataset.tab === t));
+}
+function showEditor() {
+  $("main").classList.remove("noedit");
+  $("tog").textContent = "Hide YAML";
+  if (matchMedia("(max-width:860px)").matches) setTab("yaml");
+}
+function loadText(text, name, isSample, stay) {
+  $("src").value = text;
+  original = text;
+  fileName = name;
+  shownName = name + (isSample ? " (sample)" : "");
+  $("fname").textContent = shownName;
+  if (!stay) setTab("chart");
+  parse();
+}
+function loadFile(f) { if (f) f.text().then(t => loadText(t, f.name)); }
+function loadSample(stay) {
+  fetch(SAMPLE_URL)
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(t => loadText(t, "flowchart_sample.yml", true, stay))
+    .catch(() => { setStatus("Couldn't load the sample, opening it on GitHub instead.", "bad"); window.open(SAMPLE_PAGE, "_blank"); });
+}
+
+$("src").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(parse, 250); lock(); });
+$("yamlFile").addEventListener("change", e => { loadFile(e.target.files[0]); e.target.value = ""; });
+$("openBtn").onclick = () => $("yamlFile").click();
+$("sampleBtn").onclick = () => loadSample();
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-act]");
+  if (!a) return;
+  if (a.dataset.act === "sample") loadSample();
+  else if (a.dataset.act === "dl") $("downloadBtn").click();
+  else $("yamlFile").click();
 });
 
+$("tog").onclick = () => {
+  if ($("main").classList.contains("noedit")) {
+    showEditor();
+    if (!$("src").value.trim()) loadSample(true);   // nothing loaded yet: show the sample
+  } else {
+    $("main").classList.add("noedit");
+    $("tog").textContent = "Show YAML";
+  }
+};
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  setTab(b.dataset.tab);
+  if (b.dataset.tab === "yaml" && !$("src").value.trim()) loadSample(true);
+});
 
-function render() {
-  const flow = document.getElementById("flow");
-  flow.innerHTML = "";
-  stepsData.forEach((s,i) => {
-    const div = document.createElement("div");
-    div.className = "step";
-    div.innerHTML = `${s.name}<span>${s.subtitle || ""}</span>`;
-    div.onclick = () => openModal(s.name, s.details || "");
-    flow.appendChild(div);
-    if (i < stepsData.length-1) {
-      const arrow = document.createElement("div");
-      arrow.className = "arrow";
-      arrow.innerText = "⬇️";
-      flow.appendChild(arrow);
-    }
-  });
-}
+["dragover", "dragenter"].forEach(t => window.addEventListener(t, e => { e.preventDefault(); document.body.classList.add("drag"); }));
+["dragleave", "drop"].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === "drop" || e.target === document.documentElement) document.body.classList.remove("drag"); }));
+window.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
 
-function openModal(title, body) {
-  document.getElementById("modal-title").innerHTML = title;
-  document.getElementById("modal-body").innerHTML = body;
-  document.getElementById("modal").style.display = "flex";
-}
-function closeModal() {
-  document.getElementById("modal").style.display = "none";
-}
+$("yamlDl").onclick = () => {
+  const a = el("a");
+  a.href = URL.createObjectURL(new Blob([$("src").value], { type: "text/yaml" }));
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
 
-document.getElementById("downloadBtn").addEventListener("click", () => {
-  if (!stepsData.length) return alert("Upload YAML first");
-
+// Same output format as before, so the downloaded page keeps using flowchart_template.html
+$("downloadBtn").onclick = () => {
+  if (!steps.length) return;
   fetch(TEMPLATE_URL)
     .then(r => r.text())
     .then(template => {
       let stepsHtml = "";
-
-      stepsData.forEach((s, i) => {
+      steps.forEach((s, i) => {
         const name = encodeURIComponent(s.name || "");
         const details = encodeURIComponent(s.details || "");
-        const sub = s.subtitle || "";
-
-        // Put data in attributes instead of inline onclick
-        stepsHtml +=
-          `<div class="step" data-title="${name}" data-details="${details}">
-             ${s.name}<span>${sub}</span>
+        stepsHtml += `<div class="step" data-title="${name}" data-details="${details}">
+             ${s.name}<span>${s.subtitle || ""}</span>
            </div>`;
-
-        if (i < stepsData.length - 1) {
-          stepsHtml += '<div class="arrow">⬇️</div>';
-        }
+        if (i < steps.length - 1) stepsHtml += '<div class="arrow">⬇️</div>';
       });
-
-      const html = template
-        .replace(/{{TITLE}}/g, document.getElementById("title").innerText)
-        .replace(/{{STEPS}}/g, stepsHtml);
-
-      const blob = new Blob([html], { type: "text/html" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      const t = el("div"); t.innerHTML = title;
+      const html = template.replace(/{{TITLE}}/g, t.textContent).replace(/{{STEPS}}/g, stepsHtml);
+      const a = el("a");
+      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
       a.download = "flowchart.html";
       a.click();
       URL.revokeObjectURL(a.href);
     })
     .catch(() => alert("Failed to load template"));
-});
+};
 
-
+draw();
+if (location.search.indexOf("sample") > -1) loadSample();   // flowchart.html?sample opens with the sample loaded
 </script>
-
 </body>
 </html>
