@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Math Equation Plotter</title>
+
+  <script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.8.1/math.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      color: #222;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .tabs button {
+      padding: 10px 22px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #eee;
+      border-radius: 5px;
+    }
+
+    .tabs button.active {
+      background: #2563eb;
+      color: white;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    input, select {
+      padding: 9px;
+      margin: 4px 4px 4px 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    input { width: 330px; }
+
+    button.plot-button {
+      padding: 9px 18px;
+      cursor: pointer;
+    }
+
+    .plot {
+      width: 100%;
+      height: 650px;
+    }
+
+    .error { color: red; }
+
+    .help {
+      background: #f5f7fb;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 18px 0;
+      line-height: 1.6;
+    }
+
+    .help h3 { margin-top: 0; }
+    .help code {
+      background: #e5e7eb;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .examples {
+      margin: 12px 0;
+    }
+
+    .hint {
+      color: #555;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Math Equation Plotter</h2>
+  <p>Explore mathematical equations in two and three dimensions.</p>
+
+  <div class="tabs">
+    <button id="tab2d" class="active"
+            onclick="showTab('2d')">2D Plot</button>
+    <button id="tab3d"
+            onclick="showTab('3d')">3D Plot</button>
+  </div>
+
+  <!-- 2D TAB -->
+  <div id="panel2d" class="panel active">
+    <h3>2D Equation</h3>
+
+    <input id="equation2d"
+           value="x^2 + y^2 = 16"
+           aria-label="2D equation"
+           onkeydown="if(event.key==='Enter') plot2D()">
+
+    <button class="plot-button" onclick="plot2D()">Plot</button>
+
+    <div class="examples">
+      <label for="sample2d"><strong>Try an example:</strong></label>
+      <select id="sample2d" onchange="loadSample('2d')">
+        <option value="">Choose an equation...</option>
+        <optgroup label="Basic equations">
+          <option value="2*x + 4*y = 3">Straight line</option>
+          <option value="y = x^2">Parabola</option>
+          <option value="x^2 + y^2 = 16">Circle, radius 4</option>
+          <option value="x^2 + y^2 = 25">Circle, radius 5</option>
+          <option value="x^2/9 + y^2/4 = 1">Ellipse</option>
+          <option value="x^2 - y^2 = 4">Hyperbola</option>
+          <option value="x^3 + y^3 = 16">Cubic curve</option>
+        </optgroup>
+        <optgroup label="Trigonometry">
+          <option value="y = sin(x)">Sine wave</option>
+          <option value="y = cos(x)">Cosine wave</option>
+          <option value="y = sin(x) + cos(x)">Sine + cosine</option>
+          <option value="y = sin(2*x)">Double-frequency sine</option>
+          <option value="y = 2*sin(x)">Sine with amplitude 2</option>
+          <option value="y = cos(x) + sin(2*x)">Combined waves</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <p class="hint">
+      Enter equations using x and y. Examples: y = sin(x),
+      x^2 + y^2 = 16. Trigonometric functions use radians.
+    </p>
+
+    <p class="error" id="error2d"></p>
+    <div id="graph2d" class="plot"></div>
+  </div>
+
+  <!-- 3D TAB -->
+  <div id="panel3d" class="panel">
+    <h3>3D Equation</h3>
+
+    <input id="equation3d"
+           value="x^2 + y^2 + z^2 = 25"
+           aria-label="3D equation"
+           onkeydown="if(event.key==='Enter') plot3D()">
+
+    <button class="plot-button" onclick="plot3D()">Plot</button>
+
+    <div class="examples">
+      <label for="sample3d"><strong>Try an example:</strong></label>
+      <select id="sample3d" onchange="loadSample('3d')">
+        <option value="">Choose an equation...</option>
+        <optgroup label="Surfaces">
+          <option value="x^2 + y^2 + z^2 = 25">Sphere</option>
+          <option value="x^2 + y^2 + z^2 = 9">Small sphere</option>
+          <option value="x^2 + y^2 = 16">Cylinder</option>
+          <option value="x^2 + y^2 - z^2 = 0">Double cone</option>
+          <option value="x^2 + y^2 = z">Paraboloid</option>
+          <option value="x^2 + y^2 - z = 4">Shifted paraboloid</option>
+        </optgroup>
+        <optgroup label="Trigonometric surfaces">
+          <option value="z = sin(x) * cos(y)">Sine-cosine surface</option>
+          <option value="z = sin(sqrt(x^2 + y^2))">Circular ripple</option>
+          <option value="z = cos(x) + sin(y)">Combined waves</option>
+          <option value="z = sin(x) + sin(y) + sin(z)">Implicit 3D waves</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <p class="hint">
+      Enter equations using x, y and z. For example,
+      x^2 + y^2 + z^2 = 25. Use * for multiplication.
+      Trigonometric functions use radians.
+    </p>
+
+    <p class="error" id="error3d"></p>
+    <div id="graph3d" class="plot"></div>
+  </div>
+
+  <!-- STUDENT GUIDE -->
+  <section class="help">
+    <h3>How to write equations</h3>
+
+    <p><strong>1. Powers:</strong>
+      Use <code>^</code> for exponents.
+      Example: <code>x^2 + y^2 = 16</code>
+    </p>
+
+    <p><strong>2. Multiplication:</strong>
+      Always use <code>*</code>.
+      Write <code>2*x</code>, not <code>2x</code>.
+    </p>
+
+    <p><strong>3. Trigonometry:</strong>
+      Use <code>sin(x)</code>, <code>cos(x)</code> and
+      <code>tan(x)</code>. Angles are in radians.
+    </p>
+
+    <p><strong>4. Square roots:</strong>
+      Use <code>sqrt(x^2 + y^2)</code>.
+    </p>
+
+    <p><strong>5. Equations:</strong>
+      Use a single equals sign, such as
+      <code>y = x^2</code> or
+      <code>x^2 + y^2 = 16</code>.
+    </p>
+
+    <p><strong>6. Variables:</strong>
+      The 2D tab uses x and y. The 3D tab uses x, y and z.
+    </p>
+
+    <p><strong>Experiment:</strong>
+      Change the numbers in an equation and observe how the graph changes.
+    </p>
+  </section>
+
+  <script>
+    function showTab(tab) {
+      document.getElementById("panel2d")
+        .classList.toggle("active", tab === "2d");
+      document.getElementById("panel3d")
+        .classList.toggle("active", tab === "3d");
+
+      document.getElementById("tab2d")
+        .classList.toggle("active", tab === "2d");
+      document.getElementById("tab3d")
+        .classList.toggle("active", tab === "3d");
+
+      if (tab === "2d") {
+        if (document.getElementById("graph2d").data) {
+          Plotly.Plots.resize("graph2d");
+        } else {
+          plot2D();
+        }
+      } else {
+        if (!window.graph3DRendered) {
+          plot3D();
+        } else {
+          Plotly.Plots.resize("graph3d");
+        }
+      }
+    }
+
+    function loadSample(tab) {
+      const select = document.getElementById("sample" + tab);
+      if (!select.value) return;
+
+      document.getElementById("equation" + tab).value = select.value;
+
+      if (tab === "2d") {
+        plot2D();
+      } else {
+        plot3D();
+      }
+    }
+
+    function parseEquation(input) {
+      const parts = input.split("=");
+
+      if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) {
+        throw new Error("Enter an equation with one = sign.");
+      }
+
+      return math.parse(
+        `(${parts[0]}) - (${parts[1]})`
+      ).compile();
+    }
+
+    // -------------------------
+    // 2D IMPLICIT PLOT
+    // -------------------------
+    function plot2D() {
+      const error = document.getElementById("error2d");
+      error.textContent = "";
+
+      try {
+        const equation = document.getElementById("equation2d").value;
+        const expr = parseEquation(equation);
+
+        const n = 201;
+        const min = -5;
+        const max = 5;
+
+        const values = Array.from(
+          { length: n },
+          (_, i) => min + (max - min) * i / (n - 1)
+        );
+
+        const z = values.map(y =>
+          values.map(x => {
+            try {
+              const result = expr.evaluate({ x, y });
+              return Number.isFinite(result) ? result : NaN;
+            } catch {
+              return NaN;
+            }
+          })
+        );
+
+        Plotly.react("graph2d", [{
+          type: "contour",
+          x: values,
+          y: values,
+          z,
+          autocontour: false,
+          contours: {
+            start: 0,
+            end: 0,
+            size: 1,
+            coloring: "none"
+          },
+          line: { color: "blue", width: 3 },
+          showscale: false
+        }], {
+          title: equation,
+          xaxis: {
+            title: "x",
+            range: [-5, 5],
+            zeroline: true,
+            scaleanchor: "y"
+          },
+          yaxis: {
+            title: "y",
+            range: [-5, 5],
+            zeroline: true
+          },
+          margin: { t: 50 }
+        });
+      } catch (e) {
+        error.textContent = e.message;
+      }
+    }
+
+    // -------------------------
+    // 3D IMPLICIT PLOT
+    // -------------------------
+    function plot3D() {
+      const error = document.getElementById("error3d");
+      error.textContent = "";
+
+      try {
+        const equation = document.getElementById("equation3d").value;
+        const expr = parseEquation(equation);
+
+        const n = 45;
+        const min = -6;
+        const max = 6;
+
+        const values = Array.from(
+          { length: n },
+          (_, i) => min + (max - min) * i / (n - 1)
+        );
+
+        const xs = [];
+        const ys = [];
+        const zs = [];
+        const fs = [];
+
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            for (let k = 0; k < n; k++) {
+              const x = values[i];
+              const y = values[j];
+              const z = values[k];
+
+              let f;
+
+              try {
+                f = expr.evaluate({ x, y, z });
+              } catch {
+                f = NaN;
+              }
+
+              xs.push(x);
+              ys.push(y);
+              zs.push(z);
+              fs.push(Number.isFinite(f) ? f : NaN);
+            }
+          }
+        }
+
+        Plotly.react("graph3d", [{
+          type: "isosurface",
+          x: xs,
+          y: ys,
+          z: zs,
+          value: fs,
+          isomin: -0.01,
+          isomax: 0.01,
+          surface: { count: 1 },
+          caps: {
+            x: { show: false },
+            y: { show: false },
+            z: { show: false }
+          },
+          colorscale: [
+            [0, "rgb(40,100,255)"],
+            [1, "rgb(40,100,255)"]
+          ],
+          showscale: false,
+          opacity: 1
+        }], {
+          title: equation,
+          scene: {
+            xaxis: { title: "x", range: [-6, 6] },
+            yaxis: { title: "y", range: [-6, 6] },
+            zaxis: { title: "z", range: [-6, 6] },
+            aspectmode: "cube"
+          },
+          margin: { t: 50 }
+        });
+
+        window.graph3DRendered = true;
+      } catch (e) {
+        error.textContent = e.message;
+      }
+    }
+
+    // Draw the initial 2D graph.
+    plot2D();
+  </script>
+</body>
+</html>
