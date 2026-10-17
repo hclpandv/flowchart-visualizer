@@ -94,7 +94,7 @@
   <span id="cnt"></span>
   <span id="eolst"></span>
   <span class="grow"></span>
-  <span id="saved" class="hide-sm">Autosaves in this browser. Ctrl+S downloads, F1 opens commands.</span>
+  <span id="saved" class="hide-sm">Each language autosaves in this browser. Ctrl+S downloads, F1 opens commands.</span>
 </footer>
 
 <!-- Loaded before Monaco's AMD loader so they register as plain globals -->
@@ -118,7 +118,21 @@
     tnb:    ['tnb',       '#002451', '#ffffff', '#8fa3c7', '#ffc58f', '#1a1206'],
     hc:     ['hc-black',  '#000000', '#ffffff', '#c8c8c8', '#ffd400', '#000000']
   };
-  var SAMPLE = "";
+  // First-time text for each language: simple variables and print. Used only until that language has saved text.
+  var STARTERS = {
+    shell: '#!/usr/bin/env bash\n\nname="world"\necho "Hello, $name"\n',
+    python: '#!/usr/bin/env python3\n\nname = "world"\nprint(f"Hello, {name}")\n',
+    powershell: '$name = "world"\nWrite-Output "Hello, $name"\n',
+    markdown: "# Notes\n\nWrite on the left, read on the right.\n\n## Formatting\n\n**Bold**, *italic*, `inline code` and a [link](https://example.com).\n\n- A bullet list\n- With a second item\n\n1. A numbered list\n2. With steps\n\n> A quote\n\n## Code\n\n```bash\necho \"hello\"\n```\n\n| Name | Value |\n| --- | --- |\n| Example | 42 |\n",
+    html: '<!DOCTYPE html>\n<html>\n<body>\n  <p id="out"></p>\n  <script>\n    const name = "world";\n    document.getElementById("out").textContent = "Hello, " + name;\n  <\/script>\n</body>\n</html>\n',
+    javascript: 'const name = "world";\nconsole.log(`Hello, ${name}`);\n',
+    vb: 'Dim name\nname = "world"\nWScript.Echo "Hello, " & name\n',
+    json: '{\n  "name": "world"\n}\n',
+    xml: '<?xml version="1.0" encoding="UTF-8"?>\n<greeting>\n  <name>world</name>\n</greeting>\n',
+    sql: "SELECT 'world' AS name;\n",
+    yaml: 'name: world\n',
+    plaintext: ''
+  };
   var $ = function (id) { return document.getElementById(id); };
   function load(k, d) {
     try { var v = localStorage.getItem('pad.' + k); if (v !== null) return v; } catch (e) {}
@@ -173,14 +187,35 @@
     $('bom').checked = load('bom', '0') === '1';
     $('eol').value = load('eol', '1');
 
+    // One saved buffer per language, kept as { language: { t: text, v: view state } }
+    var bufs = {};
+    try { bufs = JSON.parse(load('bufs', '{}')) || {}; } catch (e) {}
+    var old = load('text', null);   // text from the earlier single-buffer version
+    if (old !== null) {
+      if (!bufs[lang]) bufs[lang] = { t: old.replace(/\r\n/g, '\n') };
+      ['text', 'view'].forEach(function (k) {
+        try { localStorage.removeItem('pad.' + k); } catch (e) {}
+        try { sessionStorage.removeItem('pad.' + k); } catch (e) {}
+      });
+    }
+    var models = {}, views = {}, cur = lang;
+    function getModel(l) {
+      if (!models[l]) {
+        var b = bufs[l];
+        models[l] = monaco.editor.createModel(b ? b.t : (STARTERS[l] || ''), l);
+        models[l].setEOL(+$('eol').value);
+        if (b && b.v) views[l] = b.v;
+      }
+      return models[l];
+    }
+
     var editor = monaco.editor.create($('editor'), {
-      value: load('text', SAMPLE), language: lang, fontSize: +$('fsize').value,
+      model: getModel(lang), fontSize: +$('fsize').value,
       wordWrap: $('wrap').checked ? 'on' : 'off', minimap: { enabled: $('mini').checked },
       automaticLayout: true, scrollBeyondLastLine: false, renderWhitespace: 'selection', tabSize: 4,
       padding: { top: 10 }, fontLigatures: false
     });
-    editor.getModel().setEOL(+$('eol').value);
-    try { var vs = load('view', ''); if (vs) editor.restoreViewState(JSON.parse(vs)); } catch (e) {}
+    try { if (views[lang]) editor.restoreViewState(views[lang]); } catch (e) {}
     applyTheme(choice);
     mq.addEventListener && mq.addEventListener('change', function () { if ($('theme').value === 'auto') applyTheme('auto'); });
 
@@ -191,34 +226,26 @@
       $('eolst').textContent = m.getEOL() === '\r\n' ? 'CRLF' : 'LF';
     }
     editor.onDidChangeCursorPosition(status);
-    var t, failing = false, dirty = load('text', null) !== null;
-    function uncache() {
-      dirty = false; clearTimeout(t);
-      ['text', 'view'].forEach(function (k) {
-        try { localStorage.removeItem('pad.' + k); } catch (e) {}
-        try { sessionStorage.removeItem('pad.' + k); } catch (e) {}
-      });
-      failing = false;
-      $('saved').textContent = 'Downloaded. Cached copy cleared.';
-    }
+    var t, failing = false;
     function persist() {
-      if (!dirty) return;
       clearTimeout(t);
-      var ok = save('text', editor.getValue());
-      try { save('view', JSON.stringify(editor.saveViewState())); } catch (e) {}
+      try { views[cur] = editor.saveViewState(); } catch (e) {}
+      Object.keys(models).forEach(function (l) {
+        bufs[l] = { t: models[l].getValue().replace(/\r\n/g, '\n'), v: views[l] || null };
+      });
+      var ok = save('bufs', JSON.stringify(bufs));
       failing = !ok;
       $('saved').textContent = ok
         ? 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '. Ctrl+S downloads.'
         : 'Not saved: this browser blocks storage. Download your work before leaving.';
     }
-    editor.onDidChangeModelContent(function () { dirty = true; status(); clearTimeout(t); t = setTimeout(persist, 250); });
+    editor.onDidChangeModelContent(function () { status(); clearTimeout(t); t = setTimeout(persist, 250); });
     window.addEventListener('pagehide', persist);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') persist(); });
     window.addEventListener('beforeunload', function (e) { persist(); if (failing) { e.preventDefault(); e.returnValue = ''; } });
     status();
 
     function ext() { return $('mode').selectedOptions[0].dataset.ext; }
-    var MD_SAMPLE = "# Notes\n\nWrite on the left, read on the right.\n\n## Formatting\n\n**Bold**, *italic*, `inline code` and a [link](https://example.com).\n\n- A bullet list\n- With a second item\n\n1. A numbered list\n2. With steps\n\n> A quote\n\n## Code\n\n```bash\necho \"hello\"\n```\n\n| Name | Value |\n| --- | --- |\n| Example | 42 |\n";
     var prevOn = load('prev', '1') === '1', pt;
     if (window.DOMPurify) DOMPurify.addHook('afterSanitizeAttributes', function (n) {
       if (n.tagName === 'A' && n.getAttribute('href')) { n.setAttribute('target', '_blank'); n.setAttribute('rel', 'noopener noreferrer'); }
@@ -239,26 +266,17 @@
     $('btn-prev').onclick = function () { prevOn = !prevOn; save('prev', prevOn ? '1' : '0'); syncPrevUi(); };
     editor.onDidChangeModelContent(function () { clearTimeout(pt); pt = setTimeout(renderPrev, 150); });
 
-    // Shell and Python files always start with their shebang. A line we added earlier is swapped or removed when the language changes.
+    // Shell and Python files always start with a shebang (checked on download and when a file is opened).
     function ensureShebang() {
-      var m = editor.getModel(), want = SHEBANG[$('mode').value], first = m.getLineContent(1);
-      var ours = Object.keys(SHEBANG).some(function (k) { return SHEBANG[k] === first; });
-      var r1 = new monaco.Range(1, 1, 1, m.getLineMaxColumn(1));
-      if (want) {
-        if (first === want) return;
-        if (ours) editor.executeEdits('shebang', [{ range: r1, text: want }]);
-        else if (!/^#!/.test(first)) editor.executeEdits('shebang', [{ range: new monaco.Range(1, 1, 1, 1), text: want + '\n' }]);
-      } else if (ours) {
-        editor.executeEdits('shebang', [{ range: new monaco.Range(1, 1, m.getLineCount() > 1 ? 2 : 1, m.getLineCount() > 1 ? 1 : r1.endColumn), text: '' }]);
-      }
+      var want = SHEBANG[$('mode').value], m = editor.getModel();
+      if (want && !/^#!/.test(m.getLineContent(1))) editor.executeEdits('shebang', [{ range: new monaco.Range(1, 1, 1, 1), text: want + '\n' }]);
     }
     function setLang(v) {
-      // Leaving Markdown with the sample still untouched: remove it so it does not follow you into other languages
-      if (v !== 'markdown' && editor.getValue().replace(/\r\n/g, '\n') === MD_SAMPLE) editor.setValue('');
-      $('mode').value = v; monaco.editor.setModelLanguage(editor.getModel(), v); save('lang', v);
-      ensureShebang();
-      if (v === 'markdown' && !editor.getValue().trim()) editor.setValue(MD_SAMPLE);
-      syncPrevUi();
+      try { views[cur] = editor.saveViewState(); } catch (e) {}
+      cur = v; $('mode').value = v; save('lang', v);
+      editor.setModel(getModel(v));
+      try { if (views[v]) editor.restoreViewState(views[v]); } catch (e) {}
+      status(); syncPrevUi();
     }
     syncPrevUi();
 
@@ -268,7 +286,7 @@
     $('wrap').onchange = function () { editor.updateOptions({ wordWrap: this.checked ? 'on' : 'off' }); save('wrap', this.checked ? '1' : '0'); };
     $('mini').onchange = function () { editor.updateOptions({ minimap: { enabled: this.checked } }); save('mini', this.checked ? '1' : '0'); };
     $('bom').onchange = function () { save('bom', this.checked ? '1' : '0'); };
-    $('eol').onchange = function () { editor.getModel().setEOL(+this.value); save('eol', this.value); status(); };
+    $('eol').onchange = function () { var v = +this.value; Object.keys(models).forEach(function (l) { models[l].setEOL(v); }); save('eol', this.value); status(); };
     document.addEventListener('click', function (e) { if (!$('set').contains(e.target)) $('set').open = false; });
 
     $('btn-copy').onclick = function () {
@@ -283,7 +301,7 @@
         editor.executeEdits('paste', [{ range: editor.getSelection(), text: s, forceMoveMarkers: true }]); editor.focus();
       }, function () { alert('Clipboard access was denied. Click in the editor and press Ctrl+V.'); });
     };
-    $('btn-clear').onclick = function () { if (confirm('Clear the editor? This removes the autosaved text too.')) { editor.setValue(''); editor.focus(); } };
+    $('btn-clear').onclick = function () { if (confirm('Clear the ' + $('mode').selectedOptions[0].textContent + ' text? Other languages are not affected.')) { editor.setValue(''); editor.focus(); } };
 
     function download() {
       ensureShebang();
@@ -295,7 +313,7 @@
       a.download = 'script' + ext();
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      uncache();
+      $('saved').textContent = 'Downloaded script' + ext() + '. Your text stays saved in this browser.';
     }
     $('btn-save').onclick = download;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, download);
@@ -304,10 +322,12 @@
       if (!f) return;
       var r = new FileReader();
       r.onload = function () {
-        editor.setValue(String(r.result).replace(/^\uFEFF/, ''));
         var e = (f.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-        if (e === '.bat') e = '.cmd'; if (e === '.yaml') e = '.yml';
+        if (e === '.yaml') e = '.yml';
         LANGS.forEach(function (l) { if (l[2] === e) setLang(l[0]); });
+        editor.setValue(String(r.result).replace(/^\uFEFF/, ''));
+        editor.getModel().setEOL(+$('eol').value);
+        ensureShebang();
       };
       r.readAsText(f);
     }
